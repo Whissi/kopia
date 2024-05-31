@@ -294,6 +294,28 @@ func TestDirPrefix(t *testing.T) {
 	}
 }
 
+func TestVSSAppendPath(t *testing.T) {
+	cases := map[string]string{
+		`C:\`:                  `C:\`,
+		`C:\temp`:              `C:\temp`,
+		`/`:                    `/`,
+		`/unix/path`:           `/unix/path`,
+		`\\server\path\subdir`: `\\server\path\subdir`,
+		`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`:      `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`,
+		`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\hello`: `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\hello`,
+	}
+
+	if runtime.GOOS == "windows" {
+		cases[`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`] = `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`
+	} else {
+		cases[`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`] = `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`
+	}
+
+	for input, want := range cases {
+		require.Equal(t, want, maybeAppendPathSeparatorForVSSOnWindows(input), input)
+	}
+}
+
 func assertNoError(t *testing.T, err error) {
 	t.Helper()
 
