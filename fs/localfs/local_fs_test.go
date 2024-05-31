@@ -306,3 +306,25 @@ func TestSplitDirPrefix(t *testing.T) {
 		require.Equal(t, want.prefix, prefix, input)
 	}
 }
+
+func TestVSSAppendPath(t *testing.T) {
+	cases := map[string]string{
+		`C:\`:                  `C:\`,
+		`C:\temp`:              `C:\temp`,
+		`/`:                    `/`,
+		`/unix/path`:           `/unix/path`,
+		`\\server\path\subdir`: `\\server\path\subdir`,
+		`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`:      `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`,
+		`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\hello`: `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\hello`,
+	}
+
+	if isWindows() {
+		cases[`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`] = `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05\`
+	} else {
+		cases[`\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`] = `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy05`
+	}
+
+	for input, want := range cases {
+		require.Equal(t, want, maybeAppendPathSeparatorForVSSOnWindows(input), input)
+	}
+}

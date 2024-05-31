@@ -66,7 +66,9 @@ func (it *filesystemDirectoryIterator) Close() {
 func (fsd *filesystemDirectory) Iterate(_ context.Context) (fs.DirectoryIterator, error) {
 	fullPath := fsd.fullPath()
 
-	f, direrr := os.Open(fullPath) //nolint:gosec
+	openPath := maybeAppendPathSeparatorForVSSOnWindows(fullPath)
+
+	f, direrr := os.Open(openPath) //nolint:gosec
 	if direrr != nil {
 		return nil, errors.Wrap(direrr, "unable to read directory")
 	}
@@ -89,6 +91,30 @@ func (fsd *filesystemDirectory) Child(_ context.Context, name string) (fs.Entry,
 	}
 
 	return entryFromDirEntry(name, st, fullPath+string(filepath.Separator)), nil
+}
+
+// maybeAppendPathSeparatorForVSSOnWindows appends a path separator to the given path if the path is the root of a Windows Shadow Copy.
+// Listing the contents of the shadow volume root directory may fail without a trailing \.
+// See https://github.com/kopia/kopia/issues/3842
+func maybeAppendPathSeparatorForVSSOnWindows(fullPath string) string {
+	//nolint:goconst
+	if runtime.GOOS != "windows" {
+		return fullPath
+	}
+
+	const shadowVolumePrefix = `\\?\GLOBALROOT\Device\HarddiskVolumeShadowCopy`
+	if !strings.HasPrefix(fullPath, shadowVolumePrefix) {
+		return fullPath
+	}
+
+	// Verify whether we're at the root of the shadow volume by looking for a path separator after the shadow volume prefix
+	// If we find a path separator, we're either in a subdirectory or there was already a path separator appended to this path
+	remainder := fullPath[len(shadowVolumePrefix):]
+	if strings.ContainsRune(remainder, os.PathSeparator) {
+		return fullPath
+	}
+
+	return fullPath + string(os.PathSeparator)
 }
 
 func toDirEntryOrNil(dirEntry os.DirEntry, prefix string) (fs.Entry, error) {
